@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Крестики-нолики</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap');
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    user-select: none;
+  }
+
+  #container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    text-align: center;
+    width: 350px;
+  }
+
+  #game {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .cell {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    box-shadow: inset 0 4px 8px rgba(255,255,255,0.3), 0 4px 8px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 72px;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+
+  .cell:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+
+  .cell.x {
+    color: #ff6b6b;
+    text-shadow: 0 0 8px #ff6b6b;
+  }
+
+  .cell.o {
+    color: #4ecdc4;
+    text-shadow: 0 0 8px #4ecdc4;
+  }
+
+  #status {
+    font-size: 22px;
+    min-height: 30px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 4px rgba(0,0,0,0.6);
+  }
+
+  #reset {
+    background: #fff;
+    border: none;
+    border-radius: 30px;
+    padding: 12px 28px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #764ba2;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(118,75,162,0.4);
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  #reset:hover {
+    background: #764ba2;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(118,75,162,0.7);
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div id="game"></div>
+  <div id="status"></div>
+  <button id="reset">Начать заново</button>
+</div>
+
+<script>
+  const gameContainer = document.getElementById('game');
+  const statusDiv = document.getElementById('status');
+  const resetBtn = document.getElementById('reset');
+
+  let board = ['', '', '', '', '', '', '', '', ''];
+  let currentPlayer = 'X';
+  let gameOver = false;
+
+  const winningCombinations = [
+    [0,1,2], [3,4,5], [6,7,8],
+    [0,3,6], [1,4,7], [2,5,8],
+    [0,4,8], [2,4,6]
+  ];
+
+  function createBoard() {
+    gameContainer.innerHTML = '';
+    board.forEach((cell, idx) => {
+      const cellDiv = document.createElement('div');
+      cellDiv.classList.add('cell');
+      if (cell) cellDiv.classList.add(cell.toLowerCase());
+      cellDiv.dataset.index = idx;
+      cellDiv.textContent = cell;
+      cellDiv.addEventListener('click', cellClick);
+      gameContainer.appendChild(cellDiv);
+    });
+  }
+
+  function cellClick(e) {
+    const idx = e.target.dataset.index;
+    if (board[idx] !== '' || gameOver) return;
+
+    board[idx] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add(currentPlayer.toLowerCase());
+
+    if (checkWin()) {
+      statusDiv.textContent = `Победил игрок ${currentPlayer}!`;
+      gameOver = true;
+      return;
+    }
+
+    if (board.every(cell => cell !== '')) {
+      statusDiv.textContent = 'Ничья!';
+      gameOver = true;
+      return;
+    }
+
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    statusDiv.textContent = `Ход игрока ${currentPlayer}`;
+  }
+
+  function checkWin() {
+    return winningCombinations.some(comb => 
+      comb.every(i => board[i] === currentPlayer)
+    );
+  }
+
+  resetBtn.addEventListener('click', () => {
+    board = ['', '', '', '', '', '', '', '', ''];
+    currentPlayer = 'X';
+    gameOver = false;
+    statusDiv.textContent = `Ход игрока ${currentPlayer}`;
+    createBoard();
+  });
+
+  // Инициализация
+  statusDiv.textContent = `Ход игрока ${currentPlayer}`;
+  createBoard();
+</script>
+
+</body>
+</html>

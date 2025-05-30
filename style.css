@@ -1,0 +1,180 @@
+/* ========== Общие настройки ========== */
+
+:root {
+  --clr-primary-start: #3b82f6;
+  --clr-primary-end: #1e40af;
+  --clr-secondary-start: #10b981;
+  --clr-secondary-end: #059669;
+  --clr-bg-dark: #0f172a;
+  --clr-bg-light: rgba(255 255 255 / 0.05);
+  --clr-text-light: #f8fafc;
+  --clr-text-muted: #94a3b8;
+  --shadow-glow-blue: 0 0 12px #3b82f6;
+  --shadow-glow-green: 0 0 12px #10b981;
+  --shadow-soft: 0 10px 30px rgba(0,0,0,0.5);
+  --font-primary: 'Rubik', sans-serif;
+}
+
+/* ====== BODY ====== */
+body.menu-body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-primary);
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  color: var(--clr-text-light);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  overflow-x: hidden;
+  opacity: 0;
+  animation: fadeIn 1s forwards ease-in-out;
+}
+
+/* ====== КОНТЕЙНЕР МЕНЮ ====== */
+.menu-container {
+  max-width: 700px;
+  width: 100%;
+  padding: 3rem 3rem 4rem;
+  background: var(--clr-bg-light);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  text-align: center;
+  position: relative;
+}
+
+/* ====== ЗАГОЛОВОК ====== */
+.menu-header {
+  margin-bottom: 2rem;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.menu-title {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+.menu-subtitle {
+  margin-top: 0.5rem;
+  color: var(--clr-text-muted);
+  font-weight: 500;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+/* ====== КНОПКИ ====== */
+.menu-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.menu-btn {
+  position: relative;
+  display: inline-block;
+  padding: 1.25rem 3rem;
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  font-weight: 700;
+  color: white;
+  border-radius: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  letter-spacing: 0.04em;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+}
+
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(255 255 255 / 0.15), rgba(255 255 255 / 0));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.menu-btn:hover::before {
+  opacity: 1;
+}
+
+.menu-btn:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 4px;
+}
+
+/* Подчеркивание снизу (анимация) */
+.menu-btn .btn-underline {
+  position: absolute;
+  bottom: 10px;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: rgba(255 255 255 / 0.7);
+  border-radius: 10px;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  transform-origin: center;
+  z-index: 2;
+}
+
+.menu-btn:hover .btn-underline,
+.menu-btn:focus .btn-underline {
+  transform: scaleX(1);
+}
+
+/* Зеленая кнопка */
+.menu-btn.green {
+  background: linear-gradient(135deg, var(--clr-secondary-start), var(--clr-secondary-end));
+  box-shadow: var(--shadow-glow-green);
+}
+
+.menu-btn.green:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 20px #22c55e, 0 0 30px #16a34a;
+  transform: scale(1.07);
+}
+
+/* Синяя кнопка */
+.menu-btn.blue {
+  background: linear-gradient(135deg, var(--clr-primary-start), var(--clr-primary-end));
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.menu-btn.blue:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 20px #3b82f6, 0 0 30px #2563eb;
+  transform: scale(1.07);
+}
+
+/* ====== ФУТЕР ====== */
+.menu-footer {
+  margin-top: 3rem;
+  font-size: clamp(0.8rem, 1.5vw, 1rem);
+  color: var(--clr-text-muted);
+  user-select: none;
+  letter-spacing: 0.03em;
+}
+
+/* ====== АНИМАЦИИ ====== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

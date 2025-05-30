@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Главное меню - Максимум</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Подключение стилей -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="menu-body">
+
+  <div class="menu-container">
+    <header class="menu-header">
+      <h1 class="menu-title">🎮 Добро пожаловать в Игровой Центр</h1>
+      <p class="menu-subtitle">Выбери игру и погрузись в приключение</p>
+    </header>
+
+    <main class="menu-main">
+      <div class="menu-buttons">
+        <a href="pixel_rpg_game.html" class="menu-btn green" aria-label="Перейти в Pixel RPG Game">
+          🧙 RPG Приключение
+          <span class="btn-underline"></span>
+        </a>
+        <a href="krestiki_noliki.html" class="menu-btn blue" aria-label="Перейти в игру Крестики-нолики">
+          ❌⭕ Крестики-нолики
+          <span class="btn-underline"></span>
+        </a>
+      </div>
+    </main>
+
+    <footer class="menu-footer" role="contentinfo">
+      &copy; 2025 Игровой Центр. Все права защищены.
+    </footer>
+  </div>
+
+  <!-- Добавим плавное появление для body -->
+  <script>
+    document.body.classList.add('fade-in');
+  </script>
+</body>
+</html>
