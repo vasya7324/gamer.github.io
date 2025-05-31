@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Тетрис — Улучшенная версия</title>
+<style>
+  /* === Стили для Тетриса === */
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #f8fafc;
+    font-family: 'Rubik', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1 {
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 700;
+  }
+
+  #gameContainer {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+  }
+
+  canvas {
+    background: #111827;
+    border-radius: 1rem;
+    box-shadow: 0 0 25px #2563eb;
+    image-rendering: pixelated;
+  }
+
+  #tetrisCanvas {
+    width: 300px;
+    height: 600px;
+    /* фиксируем пропорции 10x20 блоков */
+  }
+
+  #nextCanvas {
+    width: 120px;
+    height: 120px;
+    background: #111827;
+    border-radius: 1rem;
+    box-shadow: 0 0 15px #22c55e;
+  }
+
+  #infoPanel {
+    color: #f8fafc;
+    font-size: 1.1rem;
+    max-width: 120px;
+    text-align: center;
+    user-select: none;
+  }
+
+  #scoreBoard {
+    margin-bottom: 1rem;
+  }
+
+  button {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    color: white;
+    font-weight: 700;
+    border-radius: 0.7rem;
+    box-shadow: 0 0 15px #2563eb;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+    margin-top: 1rem;
+    width: 120px;
+  }
+
+  button:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 10px #1e40af;
+  }
+
+  #pauseOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.75);
+    color: #22c55e;
+    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+  #pauseOverlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+</style>
+</head>
+<body>
+<h1>🎮 Тетрис — Улучшенная версия</h1>
+
+<div id="gameContainer">
+  <canvas id="tetrisCanvas" width="300" height="600" aria-label="Игровое поле Тетриса" role="img" tabindex="0"></canvas>
+  <div id="infoPanel" aria-live="polite" aria-atomic="true">
+    <div id="scoreBoard">Счет: <strong id="score">0</strong></div>
+    <div>Рекорд: <strong id="highScore">0</strong></div>
+    <div style="margin-top:1rem;">Следующая фигура:</div>
+    <canvas id="nextCanvas" width="120" height="120" aria-label="Следующая фигура"></canvas>
+    <button id="btnPause" aria-pressed="false" title="Пауза/Продолжить">⏸️ Пауза</button>
+    <button id="btnRestart" title="Начать заново">🔄 Начать заново</button>
+  </div>
+</div>
+
+<div id="pauseOverlay" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<!-- Звуки -->
+<audio id="soundRotate" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+<audio id="soundDrop" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+<audio id="soundLineClear" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+<audio id="soundGameOver" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg" preload="auto"></audio>
+
+<script>
+(() => {
+  const canvas = document.getElementById('tetrisCanvas');
+  const ctx = canvas.getContext('2d');
+  const nextCanvas = document.getElementById('nextCanvas');
+  const nextCtx = nextCanvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const highScoreEl = document.getElementById('highScore');
+  const pauseOverlay = document.getElementById('pauseOverlay');
+  const btnPause = document.getElementById('btnPause');
+  const btnRestart = document.getElementById('btnRestart');
+
+  // Звуки
+  const soundRotate = document.getElementById('soundRotate');
+  const soundDrop = document.getElementById('soundDrop');
+  const soundLineClear = document.getElementById('soundLineClear');
+  const soundGameOver = document.getElementById('soundGameOver');
+
+  const ROWS = 20;
+  const COLS = 10;
+  const BLOCK_SIZE = canvas.width / COLS;
+
+  // Цвета фигур и тени
+  const COLORS = {
+    I: ['#06b6d4', '#0e7490'],
+    J: ['#2563eb', '#1e40af'],
+    L: ['#f97316', '#b45309'],
+    O: ['#eab308', '#a16207'],
+    S: ['#22c55e', '#166534'],
+    T: ['#8b5cf6', '#5b21b6'],
+    Z: ['#ef4444', '#991b1b'],
+  };
+
+  // Фигуры и их вращения (матрицы 4x4)
+  const SHAPES = {
+    I: [
+      [[0,0,0,0],
+       [1,1,1,1],
+       [0,0,0,0],
+       [0,0,0,0]],
+      [[0,0,1,0],
+       [0,0,1,0],
+       [0,0,1,0],
+       [0,0,1,0]],
+    ],
+    J: [
+      [[1,0,0],
+       [1,1,1],
+       [0,0,0]],
+      [[0,1,1],
+       [0,1,0],
+       [0,1,0]],
+      [[0,0,0],
+       [1,1,1],
+       [0,0,1]],
+      [[0,1,0],
+       [0,1,0],
+       [1,1,0]],
+    ],
+    L: [
+      [[0,0,1],
+       [1,1,1],
+       [0,0,0]],
+      [[0,1,0],
+       [0,1,0],
+       [0,1,1]],
+      [[0,0,0],
+       [1,1,1],
+       [1,0,0]],
+      [[1,1,0],
+       [0,1,0],
+       [0,1,0]],
+    ],
+    O: [
+      [[1,1],
+       [1,1]],
+    ],
+    S: [
+      [[0,1,1],
+       [1,1,0],
+       [0,0,0]],
+      [[0,1,0],
+       [0,1,1],
+       [0,0,1]],
+    ],
+    T: [
+      [[0,1,0],
+       [1,1,1],
+       [0,0,0]],
+      [[0,1,0],
+       [0,1,1],
+       [0,1,0]],
+      [[0,0,0],
+       [1,1,1],
+       [0,1,0]],
+      [[0,1,0],
+       [1,1,0],
+       [0,1,0]],
+    ],
+    Z: [
+      [[1,1,0],
+       [0,1,1],
+       [0,0,0]],
+      [[0,0,1],
+       [0,1,1],
+       [0,1,0]],
+    ],
+  };
+
+  // Создаем игровое поле - массив ROWS x COLS
+  let field = [];
+
+  // Текущая фигура
+  let currentPiece = null;
+  let currentX = 0;
+  let currentY = 0;
+  let currentRotation = 0;
+
+  // Следующая фигура
+  let nextPiece = null;
+
+  // Скорость падения в мс
+  let dropInterval = 800;
+  let lastDropTime = 0;
+
+  // Счет
+  let score = 0;
+  let highScore = parseInt(localStorage.getItem('tetrisHighScore')) || 0;
+
+  // Статус игры
+  let isPaused = false;
+  let isGameOver = false;
+
+  // Инициализация пустого поля
+  function initField() {
+    field = [];
+    for(let r=0; r<ROWS; r++) {
+      field[r] = [];
+      for(let c=0; c<COLS; c++) {
+        field[r][c] = null;
+      }
+    }
+  }
+
+  // Выбор случайной фигуры
+  function randomPiece() {
+    const keys = Object.keys(SHAPES);
+    const type = keys[Math.floor(Math.random()*keys.length)];
+    return { type, rotation: 0 };
+  }
+
+  // Проверка, можно ли разместить фигуру в позиции
+  function canPlace(piece, x, y, rotation) {
+    const shape = SHAPES[piece.type][rotation % SHAPES[piece.type].length];
+    for(let r=0; r<shape.length; r++) {
+      for(let c=0; c<shape[r].length; c++) {
+        if(shape[r][c]) {
+          const newX = x + c;
+          const newY = y + r;
+          if(newX < 0 || newX >= COLS || newY >= ROWS) return false;
+          if(newY >= 0 && field[newY][newX]) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Поместить фигуру на поле (зафиксировать)
+  function placePiece() {
+    const shape = SHAPES[currentPiece.type][currentRotation % SHAPES[currentPiece.type].length];
+    for(let r=0; r<shape.length; r++) {
+      for(let c=0; c<shape[r].length; c++) {
+        if(shape[r][c]) {
+          const x = currentX + c;
+          const y = currentY + r;
+          if(y >= 0) {
+            field[y][x] = currentPiece.type;
+          }
+        }
+      }
+    }
+  }
+
+  // Удалить заполненные линии
+  function clearLines() {
+    let linesCleared = 0;
+    for(let r=ROWS-1; r>=0; r--) {
+      if(field[r].every(cell => cell !== null)) {
+        field.splice(r,1);
+        field.unshift(new Array(COLS).fill(null));
+        linesCleared++;
+        r++; // повторно проверить текущую линию, т.к. строки сдвинулись вниз
+      }
+    }
+    if(linesCleared > 0) {
+      score += linesCleared * linesCleared * 100;
+      if(score > highScore) {
+        highScore = score;
+        localStorage.setItem('tetrisHighScore', highScore);
+      }
+      soundLineClear.play();
+    }
+  }
+
+  // Отрисовка блока с градиентом и тенью
+  function drawBlock(x, y, type) {
+    const baseColor = COLORS[type][0];
+    const shadowColor = COLORS[type][1];
+    const px = x * BLOCK_SIZE;
+    const py = y * BLOCK_SIZE;
+
+    // Градиент от верхнего левого к нижнему правому
+    const grad = ctx.createLinearGradient(px, py, px+BLOCK_SIZE, py+BLOCK_SIZE);
+    grad.addColorStop(0, baseColor);
+    grad.addColorStop(1, shadowColor);
+
+    // Тень
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = grad;
+    ctx.fillRect(px+2, py+2, BLOCK_SIZE-4, BLOCK_SIZE-4);
+
+    // Контур блока
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#f8fafc80';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px+2, py+2, BLOCK_SIZE-4, BLOCK_SIZE-4);
+  }
+
+  // Отрисовка игрового поля
+  function drawField() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Фон с легкой текстурой (полупрозрачные квадраты)
+    for(let r=0; r<ROWS; r++) {
+      for(let c=0; c<COLS; c++) {
+        const px = c * BLOCK_SIZE;
+        const py = r * BLOCK_SIZE;
+
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+        ctx.strokeStyle = '#37415133';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+      }
+    }
+
+    // Отрисовка фиксированных блоков
+    for(let r=0; r<ROWS; r++) {
+      for(let c=0; c<COLS; c++) {
+        if(field[r][c]) {
+          drawBlock(c, r, field[r][c]);
+        }
+      }
+    }
+  }
+
+  // Отрисовка текущей фигуры на игровом поле
+  function drawCurrentPiece() {
+    const shape = SHAPES[currentPiece.type][currentRotation % SHAPES[currentPiece.type].length];
+    for(let r=0; r<shape.length; r++) {
+      for(let c=0; c<shape[r].length; c++) {
+        if(shape[r][c]) {
+          const x = currentX + c;
+          const y = currentY + r;
+          if(y >= 0) {
+            drawBlock(x, y, currentPiece.type);
+          }
+        }
+      }
+    }
+  }
+
+  // Подсветка места, куда упадет фигура (прозрачные блоки)
+  function drawGhostPiece() {
+    let ghostY = currentY;
+    while(canPlace(currentPiece, currentX, ghostY+1, currentRotation)) {
+      ghostY++;
+    }
+    ctx.globalAlpha = 0.3;
+    const shape = SHAPES[currentPiece.type][currentRotation % SHAPES[currentPiece.type].length];
+    for(let r=0; r<shape.length; r++) {
+      for(let c=0; c<shape[r].length; c++) {
+        if(shape[r][c]) {
+          const x = currentX + c;
+          const y = ghostY + r;
+          if(y >= 0) {
+            drawBlock(x, y, currentPiece.type);
+          }
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Отрисовка следующей фигуры (увеличенный масштаб)
+  function drawNextPiece() {
+    nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+    if(!nextPiece) return;
+
+    const shape = SHAPES[nextPiece.type][0];
+    const size = shape.length;
+    const blockSize = nextCanvas.width / 4;
+    const offsetX = (4 - size) / 2 * blockSize;
+    const offsetY = (4 - size) / 2 * blockSize;
+
+    nextCtx.shadowColor = COLORS[nextPiece.type][1];
+    nextCtx.shadowBlur = 6;
+
+    for(let r=0; r<size; r++) {
+      for(let c=0; c<size; c++) {
+        if(shape[r][c]) {
+          const px = offsetX + c * blockSize;
+          const py = offsetY + r * blockSize;
+
+          const grad = nextCtx.createLinearGradient(px, py, px+blockSize, py+blockSize);
+          grad.addColorStop(0, COLORS[nextPiece.type][0]);
+          grad.addColorStop(1, COLORS[nextPiece.type][1]);
+
+          nextCtx.fillStyle = grad;
+          nextCtx.fillRect(px+2, py+2, blockSize-4, blockSize-4);
+
+          nextCtx.strokeStyle = '#f8fafc80';
+          nextCtx.lineWidth = 2;
+          nextCtx.strokeRect(px+2, py+2, blockSize-4, blockSize-4);
+        }
+      }
+    }
+
+    nextCtx.shadowBlur = 0;
+  }
+
+  // Переместить фигуру вниз, если нельзя - зафиксировать и начать новую
+  function dropPiece() {
+    if(canPlace(currentPiece, currentX, currentY+1, currentRotation)) {
+      currentY++;
+      soundDrop.play();
+      return true;
+    } else {
+      placePiece();
+      clearLines();
+      spawnNewPiece();
+      return false;
+    }
+  }
+
+  // Появление новой фигуры
+  function spawnNewPiece() {
+    currentPiece = nextPiece || randomPiece();
+    currentX = Math.floor((COLS - SHAPES[currentPiece.type][0].length) / 2);
+    currentY = -getTopEmptyRows(currentPiece.type, currentRotation);
+    currentRotation = 0;
+    nextPiece = randomPiece();
+
+    if(!canPlace(currentPiece, currentX, currentY, currentRotation)) {
+      isGameOver = true;
+      soundGameOver.play();
+      showPauseOverlay("Игра окончена!\nНажми Начать заново");
+    }
+
+    updateScoreBoard();
+  }
+
+  // Сколько пустых строк сверху у фигуры (для корректного появления)
+  function getTopEmptyRows(type, rotation) {
+    const shape = SHAPES[type][rotation % SHAPES[type].length];
+    let count = 0;
+    for(let r=0; r<shape.length; r++) {
+      if(shape[r].every(cell => cell === 0)) count++;
+      else break;
+    }
+    return count;
+  }
+
+  // Обновление счета и рекорда
+  function updateScoreBoard() {
+    scoreEl.textContent = score;
+    highScoreEl.textContent = highScore;
+  }
+
+  // Обработчик клавиш
+  function handleKeyDown(e) {
+    if(isPaused || isGameOver) return;
+
+    switch(e.key) {
+      case 'ArrowLeft':
+      case 'a':
+      case 'A':
+        if(canPlace(currentPiece, currentX-1, currentY, currentRotation)) {
+          currentX--;
+          e.preventDefault();
+        }
+        break;
+      case 'ArrowRight':
+      case 'd':
+      case 'D':
+        if(canPlace(currentPiece, currentX+1, currentY, currentRotation)) {
+          currentX++;
+          e.preventDefault();
+        }
+        break;
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        if(canPlace(currentPiece, currentX, currentY+1, currentRotation)) {
+          currentY++;
+          score++; // бонус за ускоренное падение
+          e.preventDefault();
+          soundDrop.play();
+        }
+        break;
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+      case 'x':
+      case 'X':
+        // Вращение
+        rotatePiece();
+        e.preventDefault();
+        break;
+      case ' ':
+        // Быстрое падение
+        hardDrop();
+        e.preventDefault();
+        break;
+    }
+  }
+
+  // Вращение фигуры с проверкой и сдвигом (Wall kick)
+  function rotatePiece() {
+    const newRotation = (currentRotation + 1) % SHAPES[currentPiece.type].length;
+    if(canPlace(currentPiece, currentX, currentY, newRotation)) {
+      currentRotation = newRotation;
+      soundRotate.play();
+    } else {
+      // Wall kick: пробуем сдвинуть фигуру влево или вправо на 1
+      if(canPlace(currentPiece, currentX-1, currentY, newRotation)) {
+        currentX--;
+        currentRotation = newRotation;
+        soundRotate.play();
+      } else if(canPlace(currentPiece, currentX+1, currentY, newRotation)) {
+        currentX++;
+        currentRotation = newRotation;
+        soundRotate.play();
+      }
+    }
+  }
+
+  // Мгновенное падение вниз
+  function hardDrop() {
+    while(canPlace(currentPiece, currentX, currentY+1, currentRotation)) {
+      currentY++;
+      score += 2;
+    }
+    placePiece();
+    clearLines();
+    spawnNewPiece();
+    soundDrop.play();
+  }
+
+  // Пауза и отображение оверлея
+  function togglePause() {
+    if(isGameOver) return;
+    isPaused = !isPaused;
+    btnPause.textContent = isPaused ? '▶️ Продолжить' : '⏸️ Пауза';
+    btnPause.setAttribute('aria-pressed', isPaused.toString());
+    if(isPaused) {
+      showPauseOverlay("Пауза");
+    } else {
+      hidePauseOverlay();
+      lastDropTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
+  }
+
+  // Показывать оверлей паузы/конца игры
+  function showPauseOverlay(text) {
+    pauseOverlay.textContent = text;
+    pauseOverlay.classList.add('active');
+  }
+
+  // Скрыть оверлей
+  function hidePauseOverlay() {
+    pauseOverlay.classList.remove('active');
+  }
+
+  // Перезапуск игры
+  function restartGame() {
+    isGameOver = false;
+    isPaused = false;
+    score = 0;
+    initField();
+    spawnNewPiece();
+    updateScoreBoard();
+    btnPause.textContent = '⏸️ Пауза';
+    btnPause.setAttribute('aria-pressed', 'false');
+    hidePauseOverlay();
+    lastDropTime = performance.now();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Основной цикл игры
+  function gameLoop(time = 0) {
+    if(isPaused || isGameOver) return;
+
+    if(time - lastDropTime > dropInterval) {
+      if(!dropPiece()) {
+        // Фигура не упала — значит зафиксирована и появилась новая
+      }
+      lastDropTime = time;
+    }
+
+    drawField();
+    drawGhostPiece();
+    drawCurrentPiece();
+    drawNextPiece();
+
+    updateScoreBoard();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Инициализация
+  function init() {
+    initField();
+    spawnNewPiece();
+    updateScoreBoard();
+    lastDropTime = performance.now();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Слушатели
+  window.addEventListener('keydown', handleKeyDown);
+  btnPause.addEventListener('click', togglePause);
+  btnRestart.addEventListener('click', restartGame);
+
+  init();
+})();
+</script>
+
+</body>
+</html>

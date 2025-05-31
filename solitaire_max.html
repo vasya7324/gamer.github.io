@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Solitaire Max - Улучшенный Пасьянс</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap');
+
+  /* Reset */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0; padding: 0;
+    background: linear-gradient(135deg, #0a192f, #1e3a8a);
+    font-family: 'Rubik', sans-serif;
+    color: #f0f0f0;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  h1 {
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 700;
+    font-size: 2.5rem;
+    text-shadow: 0 0 10px #22c55e;
+  }
+
+  #gameInfo {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    user-select: none;
+  }
+
+  #controls {
+    margin: 1rem 0;
+    display: flex;
+    gap: 1rem;
+  }
+
+  button {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    border-radius: 0.7rem;
+    padding: 0.6rem 1.2rem;
+    font-weight: 700;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 0 12px #10b981;
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+    user-select: none;
+  }
+  button:hover {
+    box-shadow: 0 0 20px #22c55e;
+    transform: scale(1.05);
+  }
+  button:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 8px #059669;
+  }
+  button:disabled {
+    background: #555;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  #gameBoard {
+    position: relative;
+    width: 960px;
+    max-width: 95vw;
+    height: 600px;
+    background: #111827;
+    border-radius: 1rem;
+    box-shadow: 0 0 25px #22c55e;
+    padding: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    overflow: visible;
+    user-select: none;
+  }
+
+  /* Столбы колод и стопки */
+  .pile {
+    flex: 1;
+    position: relative;
+    background: #1f2937;
+    border-radius: 0.7rem;
+    box-shadow: inset 0 0 15px #0f172a;
+    padding: 0.5rem;
+    min-width: 110px;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
+  }
+  .pile-label {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #a5b4fc;
+    margin-bottom: 0.3rem;
+    user-select: none;
+  }
+
+  /* Карта */
+  .card {
+    width: 100px;
+    height: 140px;
+    border-radius: 0.7rem;
+    background: white;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.5rem 0.6rem;
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: #111827;
+    user-select: none;
+  }
+  .card.red {
+    color: #e02424;
+  }
+  .card.face-down {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    box-shadow: 0 6px 15px #1e3a8a;
+    cursor: pointer;
+  }
+  .card.face-down::before {
+    content: "🂠";
+    font-size: 3.5rem;
+    line-height: 140px;
+    text-align: center;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+  }
+  .card.dragging {
+    cursor: grabbing;
+    box-shadow: 0 0 40px #22c55e;
+    transform: scale(1.1);
+    z-index: 1000 !important;
+  }
+  .card.highlight {
+    box-shadow: 0 0 15px 5px #10b981;
+    transform: scale(1.05);
+    z-index: 500;
+  }
+
+  /* Карточные символы */
+  .card .top-left, .card .bottom-right {
+    font-size: 1.4rem;
+    user-select: none;
+  }
+  .card .bottom-right {
+    transform: rotate(180deg);
+    align-self: flex-end;
+  }
+
+  /* Стопки для фундамента */
+  #foundations {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  #foundations .pile {
+    min-height: 140px;
+    min-width: 100px;
+    padding: 0.3rem;
+  }
+
+  /* Стопки для резервной колоды и сброса */
+  #stockWaste {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+  #stockWaste .pile {
+    width: 100px;
+    height: 140px;
+    padding: 0.3rem;
+  }
+
+  /* Таймер и счетчик ходов */
+  #stats {
+    margin-top: 1rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #a5b4fc;
+  }
+
+  /* Подсказка */
+  #hintBox {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #22c55e;
+    color: #111827;
+    padding: 0.8rem 1.5rem;
+    border-radius: 0.7rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: 0 0 15px #16a34a;
+    user-select: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 2000;
+  }
+  #hintBox.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Мобильные улучшения */
+  @media (max-width: 720px) {
+    #gameBoard {
+      flex-wrap: wrap;
+      height: auto;
+      padding: 0.5rem;
+    }
+    .pile {
+      min-width: 48vw;
+      min-height: 280px;
+      margin-bottom: 0.8rem;
+    }
+    #foundations .pile {
+      min-width: 45vw;
+      min-height: 140px;
+    }
+    #stockWaste {
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>♠️♥️ Solitaire Max ♣️♦️</h1>
+
+  <div id="gameInfo" aria-live="polite" aria-atomic="true" role="region">
+    <div id="moves">Ходы: 0</div>
+    <div id="timer">Время: 00:00</div>
+  </div>
+
+  <div id="controls" role="group" aria-label="Управление игрой">
+    <button id="newGameBtn" aria-label="Начать новую игру">Новая игра</button>
+    <button id="undoBtn" aria-label="Отменить ход" disabled>Отмена</button>
+    <button id="hintBtn" aria-label="Показать подсказку">Подсказка</button>
+    <button id="soundToggleBtn" aria-label="Включить или выключить звук">Звук: Вкл</button>
+  </div>
+
+  <div id="stockWaste" aria-label="Колода и сброс">
+    <div id="stockPile" class="pile" aria-label="Запасная колода" tabindex="0"></div>
+    <div id="wastePile" class="pile" aria-label="Сброс" tabindex="0"></div>
+  </div>
+
+  <div id="gameBoard" aria-label="Игровое поле пасьянса">
+    <div id="tableau" class="pile" aria-label="Столбцы для раскладки" tabindex="0"></div>
+    <div id="foundations" aria-label="Фундамент">
+      <div class="pile" id="foundation1" aria-label="Фундамент пики" tabindex="0"></div>
+      <div class="pile" id="foundation2" aria-label="Фундамент червы" tabindex="0"></div>
+      <div class="pile" id="foundation3" aria-label="Фундамент трефы" tabindex="0"></div>
+      <div class="pile" id="foundation4" aria-label="Фундамент бубны" tabindex="0"></div>
+    </div>
+  </div>
+
+  <div id="hintBox" role="alert" aria-live="assertive"></div>
+
+<script>
+(() => {
+  // Карты: масть, значение и цвет
+  const suits = ['♠', '♥', '♣', '♦'];
+  const colors = { '♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red' };
+  const ranks = [ 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K' ];
+
+  // DOM элементы
+  const newGameBtn = document.getElementById('newGameBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const soundToggleBtn = document.getElementById('soundToggleBtn');
+  const stockPile = document.getElementById('stockPile');
+  const wastePile = document.getElementById('wastePile');
+  const tableau = document.getElementById('tableau');
+  const foundations = [
+    document.getElementById('foundation1'),
+    document.getElementById('foundation2'),
+    document.getElementById('foundation3'),
+    document.getElementById('foundation4'),
+  ];
+  const movesCounter = document.getElementById('moves');
+  const timerElem = document.getElementById('timer');
+  const hintBox = document.getElementById('hintBox');
+
+  // Звук
+  let soundEnabled = true;
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Стейт игры
+  let deck = [];
+  let stock = [];
+  let waste = [];
+  let tableaus = [[], [], [], [], [], [], []]; // 7 столбцов
+  let foundationsCards = [[], [], [], []];
+  let moves = 0;
+  let timerInterval = null;
+  let secondsElapsed = 0;
+  let undoStack = [];
+  let dragState = null; // Для перетаскивания
+  let hintTimeout = null;
+
+  // Аудио функции
+  function playClick() {
+    if (!soundEnabled) return;
+    // Короткий звук щелчка
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 800;
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+  }
+
+  // Создаем колоду (52 карты)
+  function createDeck() {
+    const cards = [];
+    for (const suit of suits) {
+      for (const rank of ranks) {
+        cards.push({
+          suit,
+          rank,
+          color: colors[suit],
+          faceUp: false,
+          id: `${rank}${suit}`,
+        });
+      }
+    }
+    return cards;
+  }
+
+  // Перемешать массив
+  function shuffle(array) {
+    for (let i = array.length -1; i > 0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  // Отрисовка одной карты (создает DOM элемент)
+  function createCardElement(card) {
+    const el = document.createElement('div');
+    el.classList.add('card');
+    if (card.color === 'red') el.classList.add('red');
+    if (!card.faceUp) el.classList.add('face-down');
+    el.setAttribute('data-id', card.id);
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', `${card.faceUp ? card.rank + ' ' + card.suit : 'Лицевая сторона вниз'}`);
+    // Текст и значок
+    if (card.faceUp) {
+      el.innerHTML = `
+        <div class="top-left">${card.rank}<br>${card.suit}</div>
+        <div class="bottom-right">${card.rank}<br>${card.suit}</div>
+      `;
+    }
+    return el;
+  }
+
+  // Обновить отображение всех столбцов, колоды и фундамента
+  function renderGame() {
+    // Очистка всех
+    stockPile.innerHTML = '';
+    wastePile.innerHTML = '';
+    tableau.innerHTML = '';
+    foundations.forEach(f => f.innerHTML = '');
+
+    // Сток (колода)
+    if (stock.length) {
+      const card = stock[stock.length-1];
+      const cardEl = createCardElement({ ...card, faceUp: false });
+      cardEl.style.position = 'relative';
+      stockPile.appendChild(cardEl);
+    } else {
+      stockPile.innerHTML = '<div style="color:#555;user-select:none;text-align:center;margin-top:60px;">Пусто</div>';
+    }
+
+    // Сброс
+    if (waste.length) {
+      const card = waste[waste.length - 1];
+      const cardEl = createCardElement(card);
+      cardEl.style.position = 'relative';
+      wastePile.appendChild(cardEl);
+    } else {
+      wastePile.innerHTML = '<div style="color:#555;user-select:none;text-align:center;margin-top:60px;">Пусто</div>';
+    }
+
+    // Табло — 7 столбцов
+    for (let i = 0; i < 7; i++) {
+      const column = document.createElement('div');
+      column.classList.add('pile');
+      column.style.position = 'relative';
+      column.style.height = '420px';
+      column.style.width = '110px';
+      column.style.margin = '0 4px';
+      column.style.flex = 'none';
+      column.setAttribute('aria-label', `Столбец ${i+1}`);
+      column.setAttribute('data-column', i);
+
+      // Каждая карта в столбце
+      for (let j = 0; j < tableaus[i].length; j++) {
+        const card = tableaus[i][j];
+        const cardEl = createCardElement(card);
+        cardEl.style.position = 'absolute';
+        cardEl.style.top = (j * 25) + 'px';
+        cardEl.style.left = '0';
+        cardEl.style.zIndex = j + 1;
+        if (!card.faceUp) {
+          cardEl.classList.add('face-down');
+        }
+        // Добавим событие для перетаскивания только для лицевых карт
+        if (card.faceUp) {
+          setupDragEvents(cardEl, i, j);
+        }
+        column.appendChild(cardEl);
+      }
+
+      tableau.appendChild(column);
+    }
+
+    // Фундаменты
+    for (let f = 0; f < 4; f++) {
+      if (foundationsCards[f].length) {
+        const card = foundationsCards[f][foundationsCards[f].length - 1];
+        const cardEl = createCardElement(card);
+        cardEl.style.position = 'relative';
+        foundations[f].appendChild(cardEl);
+      } else {
+        foundations[f].innerHTML = '<div style="color:#555;user-select:none;text-align:center;margin-top:60px;">Пусто</div>';
+      }
+    }
+
+    // Обновить счетчик ходов
+    movesCounter.textContent = `Ходы: ${moves}`;
+  }
+
+  // Проверка победы
+  function checkWin() {
+    return foundationsCards.every(f => f.length === 13);
+  }
+
+  // Запуск таймера
+  function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    secondsElapsed = 0;
+    timerInterval = setInterval(() => {
+      secondsElapsed++;
+      timerElem.textContent = 'Время: ' + formatTime(secondsElapsed);
+    }, 1000);
+  }
+  function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+  }
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2,'0');
+    const s = (sec % 60).toString().padStart(2,'0');
+    return `${m}:${s}`;
+  }
+
+  // Начать новую игру
+  function newGame() {
+    stopTimer();
+    moves = 0;
+    undoStack = [];
+    deck = createDeck();
+    shuffle(deck);
+    stock = deck.slice();
+    waste = [];
+    foundationsCards = [[], [], [], []];
+    tableaus = [[], [], [], [], [], [], []];
+
+    // Раздать карты по правилам пасьянса
+    for (let col = 0; col < 7; col++) {
+      for (let row = 0; row <= col; row++) {
+        let card = stock.shift();
+        card.faceUp = (row === col);
+        tableaus[col].push(card);
+      }
+    }
+
+    renderGame();
+    startTimer();
+    undoBtn.disabled = true;
+    hintBox.classList.remove('active');
+  }
+
+  // Умная подсказка — покажет возможный ход (если есть)
+  function showHint() {
+    clearTimeout(hintTimeout);
+    // Найдем первую возможную карту для перемещения
+    for (let fromCol = 0; fromCol < 7; fromCol++) {
+      const column = tableaus[fromCol];
+      for (let cardIndex = 0; cardIndex < column.length; cardIndex++) {
+        const card = column[cardIndex];
+        if (!card.faceUp) continue;
+        // Попробуем переместить на другой столбец
+        for (let toCol = 0; toCol < 7; toCol++) {
+          if (toCol === fromCol) continue;
+          if (canMoveTableauToTableau(card, tableaus[toCol][tableaus[toCol].length -1] || null)) {
+            highlightCard(fromCol, cardIndex);
+            hintBox.textContent = `Подсказка: переместите ${card.rank}${card.suit} с столбца ${fromCol+1} на столбец ${toCol+1}`;
+            hintBox.classList.add('active');
+            hintTimeout = setTimeout(() => hintBox.classList.remove('active'), 5000);
+            return;
+          }
+        }
+        // Попробуем переместить на фундамент
+        for (let f = 0; f < 4; f++) {
+          if (canMoveTableauToFoundation(card, f)) {
+            highlightCard(fromCol, cardIndex);
+            hintBox.textContent = `Подсказка: переместите ${card.rank}${card.suit} на фундамент ${suits[f]}`;
+            hintBox.classList.add('active');
+            hintTimeout = setTimeout(() => hintBox.classList.remove('active'), 5000);
+            return;
+          }
+        }
+      }
+    }
+    // Подсказки со сброса
+    if (waste.length) {
+      const card = waste[waste.length -1];
+      for (let f = 0; f < 4; f++) {
+        if (canMoveWasteToFoundation(card, f)) {
+          highlightWaste();
+          hintBox.textContent = `Подсказка: переместите ${card.rank}${card.suit} со сброса на фундамент ${suits[f]}`;
+          hintBox.classList.add('active');
+          hintTimeout = setTimeout(() => hintBox.classList.remove('active'), 5000);
+          return;
+        }
+      }
+      for (let toCol = 0; toCol < 7; toCol++) {
+        if (canMoveWasteToTableau(card, toCol)) {
+          highlightWaste();
+          hintBox.textContent = `Подсказка: переместите ${card.rank}${card.suit} со сброса на столбец ${toCol+1}`;
+          hintBox.classList.add('active');
+          hintTimeout = setTimeout(() => hintBox.classList.remove('active'), 5000);
+          return;
+        }
+      }
+    }
+    hintBox.textContent = "Подсказок нет. Возможно, стоит взять новую карту из колоды.";
+    hintBox.classList.add('active');
+    hintTimeout = setTimeout(() => hintBox.classList.remove('active'), 5000);
+  }
+
+  // Подсветка карты в столбце
+  function highlightCard(col, idx) {
+    clearHighlights();
+    const column = tableau.querySelector(`[data-column="${col}"]`);
+    if (!column) return;
+    const cards = Array.from(column.querySelectorAll('.card'));
+    if (cards[idx]) cards[idx].classList.add('highlight');
+  }
+  function highlightWaste() {
+    clearHighlights();
+    const card = wastePile.querySelector('.card');
+    if (card) card.classList.add('highlight');
+  }
+  function clearHighlights() {
+    document.querySelectorAll('.card.highlight').forEach(c => c.classList.remove('highlight'));
+  }
+
+  // Проверка, можно ли положить карту на другой столбец
+  function canMoveTableauToTableau(card, destCard) {
+    if (!card) return false;
+    if (!destCard) {
+      // Положить короля на пустой столбец можно
+      return card.rank === 'K';
+    }
+    // Цвета должны быть противоположны, и ранг на 1 меньше
+    if (colors[card.suit] === colors[destCard.suit]) return false;
+    if (rankValue(card.rank) !== rankValue(destCard.rank) -1) return false;
+    return true;
+  }
+
+  // Проверка можно ли положить карту на фундамент
+  function canMoveTableauToFoundation(card, foundationIndex) {
+    if (!card) return false;
+    const foundation = foundationsCards[foundationIndex];
+    if (foundation.length === 0) {
+      // На пустой фундамент можно положить только туза соответствующей масти
+      return card.rank === 'A' && suits[foundationIndex] === card.suit;
+    } else {
+      const topCard = foundation[foundation.length-1];
+      if (card.suit !== topCard.suit) return false;
+      return rankValue(card.rank) === rankValue(topCard.rank) + 1;
+    }
+  }
+  function canMoveWasteToFoundation(card, foundationIndex) {
+    return canMoveTableauToFoundation(card, foundationIndex);
+  }
+  function canMoveWasteToTableau(card, toCol) {
+    return canMoveTableauToTableau(card, tableaus[toCol][tableaus[toCol].length -1] || null);
+  }
+
+  // Значение ранга для вычислений
+  function rankValue(rank) {
+    if (rank === 'A') return 1;
+    if (rank === 'J') return 11;
+    if (rank === 'Q') return 12;
+    if (rank === 'K') return 13;
+    return parseInt(rank, 10);
+  }
+
+  // Переместить карту с одной стопки на другую (с обновлением стейта и отрисовкой)
+  function moveCardFromTableauToTableau(fromCol, cardIdx, toCol) {
+    // Перемещаем от cardIdx до конца из fromCol в toCol
+    const movingCards = tableaus[fromCol].slice(cardIdx);
+    // Проверка валидности
+    if (movingCards.length === 0) return false;
+    if (!canMoveTableauToTableau(movingCards[0], tableaus[toCol][tableaus[toCol].length -1] || null)) return false;
+
+    saveUndo();
+
+    tableaus[toCol] = tableaus[toCol].concat(movingCards);
+    tableaus[fromCol].splice(cardIdx);
+
+    // Если осталась карта и она лицом вниз - открыть
+    const fromLast = tableaus[fromCol][tableaus[fromCol].length-1];
+    if (fromLast && !fromLast.faceUp) {
+      fromLast.faceUp = true;
+    }
+
+    moves++;
+    renderGame();
+    playClick();
+    checkAndAlertWin();
+    undoBtn.disabled = false;
+    return true;
+  }
+
+  // Переместить карту со сброса на столбец
+  function moveWasteToTableau(toCol) {
+    if (waste.length === 0) return false;
+    const card = waste[waste.length - 1];
+    if (!canMoveWasteToTableau(card, toCol)) return false;
+
+    saveUndo();
+
+    tableaus[toCol].push(card);
+    waste.pop();
+
+    moves++;
+    renderGame();
+    playClick();
+    checkAndAlertWin();
+    undoBtn.disabled = false;
+    return true;
+  }
+  // Переместить карту со сброса на фундамент
+  function moveWasteToFoundation(foundationIndex) {
+    if (waste.length === 0) return false;
+    const card = waste[waste.length - 1];
+    if (!canMoveWasteToFoundation(card, foundationIndex)) return false;
+
+    saveUndo();
+
+    foundationsCards[foundationIndex].push(card);
+    waste.pop();
+
+    moves++;
+    renderGame();
+    playClick();
+    checkAndAlertWin();
+    undoBtn.disabled = false;
+    return true;
+  }
+
+  // Переместить карту со столбца на фундамент
+  function moveTableauToFoundation(fromCol) {
+    if (tableaus[fromCol].length === 0) return false;
+    const card = tableaus[fromCol][tableaus[fromCol].length -1];
+    if (!card.faceUp) return false;
+
+    for (let f = 0; f < 4; f++) {
+      if (canMoveTableauToFoundation(card, f)) {
+        saveUndo();
+
+        foundationsCards[f].push(card);
+        tableaus[fromCol].pop();
+
+        // Открыть последнюю карту, если есть
+        const lastCard = tableaus[fromCol][tableaus[fromCol].length -1];
+        if (lastCard && !lastCard.faceUp) lastCard.faceUp = true;
+
+        moves++;
+        renderGame();
+        playClick();
+        checkAndAlertWin();
+        undoBtn.disabled = false;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Взять карту из колоды в сброс
+  function drawFromStock() {
+    if (stock.length === 0) {
+      // Переместить все из сброса обратно в колоду, лицевой стороной вниз
+      if (waste.length === 0) return false;
+      saveUndo();
+      stock = waste.reverse().map(c => ({ ...c, faceUp: false }));
+      waste = [];
+      moves++;
+      renderGame();
+      playClick();
+      undoBtn.disabled = false;
+      return true;
+    } else {
+      saveUndo();
+      let card = stock.pop();
+      card.faceUp = true;
+      waste.push(card);
+      moves++;
+      renderGame();
+      playClick();
+      undoBtn.disabled = false;
+      return true;
+    }
+  }
+
+  // Сохранить состояние для отмены хода
+  function saveUndo() {
+    const state = {
+      stock: [...stock],
+      waste: [...waste],
+      tableaus: tableaus.map(col => [...col]),
+      foundationsCards: foundationsCards.map(f => [...f]),
+      moves,
+    };
+    undoStack.push(state);
+    if (undoStack.length > 50) undoStack.shift(); // Ограничим количество в стеке
+  }
+
+  // Отмена хода
+  function undo() {
+    if (undoStack.length === 0) return;
+    const state = undoStack.pop();
+    stock = state.stock;
+    waste = state.waste;
+    tableaus = state.tableaus;
+    foundationsCards = state.foundationsCards;
+    moves = state.moves;
+    renderGame();
+    undoBtn.disabled = undoStack.length === 0;
+    hintBox.classList.remove('active');
+  }
+
+  // Проверка победы и оповещение
+  function checkAndAlertWin() {
+    if (checkWin()) {
+      stopTimer();
+      alert(`Поздравляем! Вы выиграли за ${formatTime(secondsElapsed)} и ${moves} ходов!`);
+    }
+  }
+
+  // Настройка событий перетаскивания
+  function setupDragEvents(cardEl, col, idx) {
+    cardEl.draggable = true;
+    cardEl.addEventListener('dragstart', e => {
+      dragState = { fromCol: col, cardIdx: idx };
+      e.dataTransfer.setData('text/plain', ''); // Для Firefox
+      setTimeout(() => {
+        cardEl.style.visibility = 'hidden';
+      }, 0);
+    });
+    cardEl.addEventListener('dragend', e => {
+      dragState = null;
+      cardEl.style.visibility = 'visible';
+    });
+  }
+
+  // Обработчик события drop на столбцах tableau
+  tableau.addEventListener('dragover', e => {
+    e.preventDefault();
+  });
+  tableau.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!dragState) return;
+    // Определить столбец, куда бросили
+    let target = e.target;
+    while (target && !target.hasAttribute('data-column')) {
+      target = target.parentElement;
+    }
+    if (!target) return;
+    const toCol = parseInt(target.getAttribute('data-column'), 10);
+    if (dragState) {
+      const { fromCol, cardIdx } = dragState;
+      if (fromCol !== toCol) {
+        if (moveCardFromTableauToTableau(fromCol, cardIdx, toCol)) {
+          dragState = null;
+        }
+      }
+    }
+  });
+
+  // Клик по запасной колоде (stockPile)
+  stockPile.addEventListener('click', () => {
+    if (drawFromStock()) playClick();
+  });
+
+  // Клик по сбросу (wastePile)
+  wastePile.addEventListener('click', () => {
+    if (waste.length === 0) return;
+    const card = waste[waste.length -1];
+    // Попробуем положить на фундамент
+    for (let f = 0; f < 4; f++) {
+      if (moveWasteToFoundation(f)) {
+        playClick();
+        return;
+      }
+    }
+    // Попробуем положить на столбец
+    for (let toCol = 0; toCol < 7; toCol++) {
+      if (moveWasteToTableau(toCol)) {
+        playClick();
+        return;
+      }
+    }
+  });
+
+  // Клик по фундаменту для перемещения последней карты со столбца
+  foundations.forEach((foundationElem, idx) => {
+    foundationElem.addEventListener('click', () => {
+      for (let col = 0; col < 7; col++) {
+        if (moveTableauToFoundation(col)) {
+          playClick();
+          break;
+        }
+      }
+    });
+  });
+
+  // Кнопки управления
+  newGameBtn.addEventListener('click', () => newGame());
+  undoBtn.addEventListener('click', () => undo());
+  hintBtn.addEventListener('click', () => showHint());
+  soundToggleBtn.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    soundToggleBtn.textContent = `Звук: ${soundEnabled ? 'Вкл' : 'Выкл'}`;
+  });
+
+  // Запуск игры при загрузке страницы
+  newGame();
+})();
+</script>
